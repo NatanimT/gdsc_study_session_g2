@@ -1,24 +1,46 @@
 import os
 import shutil
-import time
+from datetime import datetime, timedelta
 
-def collect_and_move_files():
-    try:
-        current_directory = os.getcwd()
-        last_24hours_directory = os.path.join(current_directory, "last_24hours")
+def list_files(directory="../"):
+    return [f for f in os.listdir(directory) if os.path.isfile(os.path.join(directory, f))]
 
-        if not os.path.exisits(last_24hours_directory):
-            os.makedirs(last_24hours_directory)
+def is_recently_modified_or_created(file_path):
+    current_time = datetime.now()
+    file_stat = os.stat(file_path)
+    time_diff = current_time.timestamp() - max(file_stat.st_mtime, file_stat.st_ctime)
+    return time_diff < 24 * 3600
 
-        files = [f for f in os.listdir(current_directory) if os.path.isfile(os.path.join(current_directory, f))]
-        current_time = time.time()
+def update_file(file_path):
+    with open(file_path, 'a') as f:
+        f.write('\nUpdated at: ' + str(datetime.now()))
 
-        for file in files:
-            file_path = os.path.join(current_directory,file)
-            file_stat = os.stat(file_path)
+def create_last_24hours_folder():
+    folder_name = "last_24hours"
+    folder_path = os.path.join(os.getcwd(), folder_name)
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
-            if (current_time -  file_stat.st_mtime) < 24 * 3600 or (current_time - file_stat.st_ctime) < 24 * 3600:
-                shutil.move(file_path, os.path.join(last_24hours_directory, file))
-    except Exception as e:
-        print(f"Error: {e}")
-collect_and_move_files()
+def move_file_to_last_24hours(file_path):
+    destination_folder = os.path.join(os.getcwd(), "last_24hours", os.path.basename(file_path))
+    shutil.move(file_path, destination_folder)
+
+def main():
+    files = list_files()
+
+    recent_files = [file for file in files if is_recently_modified_or_created(file)]
+
+    if not recent_files:
+        print("No recently modified or created files found.")
+        return
+
+    create_last_24hours_folder()
+
+    for file in recent_files:
+        file_path = os.path.join(os.getcwd(), file)
+        update_file(file_path)
+        move_file_to_last_24hours(file_path)
+
+    print("Files updated and moved to 'last_24hours' folder.")
+
+print(list_files())
